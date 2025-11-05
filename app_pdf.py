@@ -1,42 +1,40 @@
-# =====================================================
-# 🧠 Auteur : Inav
-# 🌍 Application : PDF Tool - Fusion, Défusion, Compression
-# =====================================================
-
 import streamlit as st
 from PyPDF2 import PdfReader, PdfWriter, PdfMerger
 import tempfile, os, shutil, zipfile, subprocess
 
 # -----------------------------------------------------
-# 🏷️ Configuration de la page
+# Configuration de la page
 # -----------------------------------------------------
 st.set_page_config(page_title="🧩 PDF Tool", page_icon="📘", layout="centered")
 
 st.title("🧩 Inav PDF Tool – Fusion, Défusion, Compression")
-st.markdown("Inav vous propose cet outil simple et rapide pour manipuler vos fichiers PDF sans crainte 🚀")
+st.markdown("Un outil simple et rapide d'Inav pour manipuler vos fichiers PDF 🚀")
 
 # -----------------------------------------------------
-# 🔧 Fonctions utilitaires
+# Fonctions utilitaires
 # -----------------------------------------------------
 
-def save_uploaded_file(uploaded_file):
-    """Sauvegarde un fichier uploadé (Streamlit) dans un fichier temporaire sur le disque"""
-    temp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-    temp.write(uploaded_file.read())
-    temp.flush()
-    temp.close()
-    return temp.name
+def save_uploaded_file(uploaded_file, folder="uploads"):
+    """Sauvegarde un fichier uploadé dans un dossier temporaire persistant"""
+    os.makedirs(folder, exist_ok=True)
+    file_path = os.path.join(folder, uploaded_file.name)
+    with open(file_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    return file_path
 
 
 def fusionner_pdfs(file_paths):
     """Fusionne plusieurs PDF et retourne le chemin du PDF fusionné"""
     merger = PdfMerger()
     for file in file_paths:
-        merger.append(file)
-    temp_output = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-    merger.write(temp_output.name)
+        try:
+            merger.append(file)
+        except Exception as e:
+            st.error(f"Erreur lors de la lecture de {file} : {e}")
+    output_path = os.path.join(tempfile.gettempdir(), "PDF_Fusionne.pdf")
+    merger.write(output_path)
     merger.close()
-    return temp_output.name
+    return output_path
 
 
 def defusionner_pdf(file_path):
@@ -77,26 +75,24 @@ def compresser_pdf(file_path, niveau):
         f'-sOutputFile="{temp_output.name}" "{file_path}"'
     )
 
-    # Exécution de Ghostscript si présent
     try:
         subprocess.call(cmd, shell=True)
         return temp_output.name
     except Exception as e:
-        st.error("⚠️ Erreur de compression : Ghostscript non disponible.")
+        st.error(f"⚠️ Erreur de compression : {e}")
         return None
 
 
 # -----------------------------------------------------
-# 🧭 Menu principal
+# Menu principal
 # -----------------------------------------------------
-
 action = st.sidebar.radio(
     "Choisissez une action :",
     ["Fusionner des PDF", "Défusionner un PDF", "Compresser un PDF"]
 )
 
 # -----------------------------------------------------
-# 🔗 1️⃣ Fusionner
+# 🔗 Fusionner
 # -----------------------------------------------------
 if action == "Fusionner des PDF":
     st.header("🔗 Fusionner des PDF")
@@ -104,19 +100,19 @@ if action == "Fusionner des PDF":
 
     if st.button("Fusionner") and files:
         with st.spinner("Fusion en cours..."):
-            # Enregistrer tous les fichiers temporairement
-            temp_paths = [save_uploaded_file(f) for f in files]
-
+            folder = tempfile.mkdtemp()
+            temp_paths = [save_uploaded_file(f, folder) for f in files]
             merged_path = fusionner_pdfs(temp_paths)
-            for p in temp_paths:
-                os.remove(p)  # Nettoyage
 
         with open(merged_path, "rb") as f:
             st.success(f"✅ Fusion terminée ({len(files)} fichiers).")
             st.download_button("📥 Télécharger le PDF fusionné", f, file_name="PDF_Fusionne.pdf")
 
+        # Nettoyage
+        shutil.rmtree(folder, ignore_errors=True)
+
 # -----------------------------------------------------
-# ✂️ 2️⃣ Défusionner
+# ✂️ Défusionner
 # -----------------------------------------------------
 elif action == "Défusionner un PDF":
     st.header("✂️ Défusionner un PDF")
@@ -126,14 +122,14 @@ elif action == "Défusionner un PDF":
         with st.spinner("Défusion en cours..."):
             file_path = save_uploaded_file(file)
             zip_path, pages = defusionner_pdf(file_path)
-            os.remove(file_path)  # Nettoyage
+            os.remove(file_path)
 
         with open(zip_path, "rb") as f:
             st.success(f"✅ Le document contient {pages} pages.")
             st.download_button("📦 Télécharger le ZIP", f, file_name="pages_pdf.zip")
 
 # -----------------------------------------------------
-# 🗜️ 3️⃣ Compresser
+# 🗜️ Compresser
 # -----------------------------------------------------
 elif action == "Compresser un PDF":
     st.header("🗜️ Compresser un PDF")
@@ -144,7 +140,7 @@ elif action == "Compresser un PDF":
         with st.spinner("Compression en cours..."):
             file_path = save_uploaded_file(file)
             compressed_path = compresser_pdf(file_path, niveau)
-            os.remove(file_path)  # Nettoyage
+            os.remove(file_path)
 
         if compressed_path:
             with open(compressed_path, "rb") as f:
@@ -154,7 +150,7 @@ elif action == "Compresser un PDF":
             st.error("❌ Échec de la compression. Ghostscript peut ne pas être disponible sur ce serveur.")
 
 # -----------------------------------------------------
-# 🧾 Pied de page
+# Pied de page
 # -----------------------------------------------------
 st.markdown("---")
-st.caption("🧠 Développé avec ❤️ par Gael FOKA")
+st.caption("🧠 Développé avec ❤️ par Inav Gael FOKA")
