@@ -58,6 +58,11 @@ def defusionner_pdf(file_path):
     return zip_path, len(reader.pages)
 
 
+def ghostscript_disponible():
+    """Vérifie si Ghostscript est installé sur le serveur"""
+    return shutil.which("gs") is not None
+
+
 def compresser_pdf(file_path, niveau):
     """Compresse un PDF avec Ghostscript (si disponible)"""
     temp_output = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
@@ -76,11 +81,33 @@ def compresser_pdf(file_path, niveau):
     )
 
     try:
-        subprocess.call(cmd, shell=True)
+        subprocess.run(cmd, shell=True, check=True)
         return temp_output.name
-    except Exception as e:
-        st.error(f"⚠️ Erreur de compression : {e}")
+    except subprocess.CalledProcessError:
+        st.error("❌ Erreur : la compression avec Ghostscript a échoué.")
         return None
+    except FileNotFoundError:
+        st.error("❌ Ghostscript n'est pas installé sur ce serveur.")
+        return None
+
+
+def compresser_pdf_sans_gs(file_path, niveau):
+    """Tentative de compression basique sans Ghostscript"""
+    reader = PdfReader(file_path)
+    writer = PdfWriter()
+
+    for page in reader.pages:
+        try:
+            page.compress_content_streams()  # compresse les flux de contenu (si possible)
+        except Exception:
+            pass
+        writer.add_page(page)
+
+    output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
+    with open(output_path, "wb") as f:
+        writer.write(f)
+
+    return output_path
 
 
 # -----------------------------------------------------
@@ -108,7 +135,6 @@ if action == "Fusionner des PDF":
             st.success(f"✅ Fusion terminée ({len(files)} fichiers).")
             st.download_button("📥 Télécharger le PDF fusionné", f, file_name="PDF_Fusionne.pdf")
 
-        # Nettoyage
         shutil.rmtree(folder, ignore_errors=True)
 
 # -----------------------------------------------------
@@ -139,15 +165,22 @@ elif action == "Compresser un PDF":
     if st.button("Compresser") and file:
         with st.spinner("Compression en cours..."):
             file_path = save_uploaded_file(file)
-            compressed_path = compresser_pdf(file_path, niveau)
+
+            if ghostscript_disponible():
+                st.info("🔍 Ghostscript détecté – compression optimale.")
+                compressed_path = compresser_pdf(file_path, niveau)
+            else:
+                st.warning("⚠️ Ghostscript non disponible – compression simplifiée utilisée.")
+                compressed_path = compresser_pdf_sans_gs(file_path, niveau)
+
             os.remove(file_path)
 
-        if compressed_path:
+        if compressed_path and os.path.exists(compressed_path):
             with open(compressed_path, "rb") as f:
                 st.success("✅ Compression terminée.")
                 st.download_button("📥 Télécharger le PDF compressé", f, file_name="PDF_compresse.pdf")
         else:
-            st.error("❌ Échec de la compression. Ghostscript peut ne pas être disponible sur ce serveur.")
+            st.error("❌ Échec de la compression. Aucune sortie générée.")
 
 # -----------------------------------------------------
 # Pied de page
