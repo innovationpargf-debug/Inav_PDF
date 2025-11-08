@@ -5,10 +5,10 @@ import tempfile, os, shutil, zipfile, subprocess
 # -----------------------------------------------------
 # Configuration de la page
 # -----------------------------------------------------
-st.set_page_config(page_title="🧩 PDF Tool", page_icon="📘", layout="centered")
+st.set_page_config(page_title="Inav PDF", page_icon="📘", layout="centered")
 
-st.title("🧩 Inav PDF Tool – Fusion, Défusion, Compression")
-st.markdown("Un outil simple et rapide d'Inav pour manipuler vos fichiers PDF 🚀")
+st.title("Inav  – Fusion, Défusion, Compression PDF")
+st.markdown("Un outil simple et rapide d'Inav pour manipuler vos fichiers PDF en ligne sans sauvegarde et sans consulter tes données sensibles.")
 
 # -----------------------------------------------------
 # Fonctions utilitaires
@@ -180,10 +180,10 @@ elif action == "Compresser un PDF":
                 st.success("✅ Compression terminée.")
                 st.download_button("📥 Télécharger le PDF compressé", f, file_name="PDF_compresse.pdf")
         else:
-            st.error("❌ Échec de la compression. Aucune sortie générée.")
+            st.error("Échec de la compression. Aucune sortie générée.")
 
 # -----------------------------------------------------
 # Pied de page
 # -----------------------------------------------------
 st.markdown("---")
-st.caption("🧠 Développé avec ❤️ par Inav Gael FOKA")
+st.caption("Par Inav Gael FOKA")
